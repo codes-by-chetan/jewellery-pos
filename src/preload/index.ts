@@ -114,6 +114,13 @@ interface PaymentMethodsAPI {
   delete: (code: string) => Promise<boolean>;
 }
 
+interface RenderingAPI {
+  renderInvoiceToHTML: (invoiceId: number, versionNumber?: number) => Promise<{ success: boolean; html?: string; error?: string }>;
+  printInvoice: (invoiceId: number, versionNumber?: number) => Promise<{ success: boolean; error?: string }>;
+  printInvoiceToPDF: (invoiceId: number, versionNumber?: number, outputPath?: string) => Promise<{ success: boolean; path?: string; error?: string }>;
+  printInvoicePreview: (invoiceId: number, versionNumber?: number) => Promise<{ success: boolean; error?: string }>;
+}
+
 // Expose the API to the renderer
 contextBridge.exposeInMainWorld('electronAPI', {
   // Auth
@@ -245,6 +252,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (code: string) => ipcRenderer.invoke('paymentMethods:delete', code),
   },
 
+  // Rendering
+  rendering: {
+    renderInvoiceToHTML: (invoiceId: number, versionNumber?: number) => ipcRenderer.invoke('rendering:renderInvoiceToHTML', invoiceId, versionNumber),
+    printInvoice: (invoiceId: number, versionNumber?: number) => ipcRenderer.invoke('rendering:printInvoice', invoiceId, versionNumber),
+    printInvoiceToPDF: (invoiceId: number, versionNumber?: number, outputPath?: string) => ipcRenderer.invoke('rendering:printInvoiceToPDF', invoiceId, versionNumber, outputPath),
+    printInvoicePreview: (invoiceId: number, versionNumber?: number) => ipcRenderer.invoke('rendering:printInvoicePreview', invoiceId, versionNumber),
+  },
+
   // Utility
   utils: {
     getAppVersion: () => ipcRenderer.invoke('utils:getAppVersion'),
@@ -269,6 +284,7 @@ declare global {
       templates: TemplateAPI;
       audit: AuditAPI;
       paymentMethods: PaymentMethodsAPI;
+      rendering: RenderingAPI;
       utils: {
         getAppVersion: () => Promise<string>;
         getUserDataPath: () => Promise<string>;

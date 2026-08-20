@@ -15,7 +15,7 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {
     // Rebuild native modules for electron
-    onlyModules: ['sqlite3'],
+    onlyModules: ['better-sqlite3'],
   },
   makers: [
     new MakerSquirrel({}),

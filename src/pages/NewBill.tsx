@@ -71,19 +71,23 @@ interface InvoiceItem {
   english_name: string;
   marathi_name?: string;
   gross_weight: number;
+  stone_weight: number;
   net_weight: number;
-  wastage_percentage: number;
-  wastage_weight: number;
   rate_per_gram: number;
   metal_value: number;
   making_charge_method: string;
   making_charge_value: number;
   making_charge_per_gram_base: string;
-  making_charge: number;
-  wastage_base: string;
+  making_charge_amount: number;
+  wastage_method: string;
   wastage_value: number;
+  wastage_base: string;
+  wastage_amount: number;
   stone_value: number;
   other_charges: number;
+  discount_method: string;
+  discount_value: number;
+  discount_amount: number;
   taxable_value: number;
   cgst_rate: number;
   cgst_amount: number;
@@ -193,11 +197,11 @@ export function NewBill() {
     return presets.find(p => p.id === presetId);
   };
 
-  // Calculate item values
+  // Calculate item values - simplified client-side preview (actual calc happens in main process)
   const calculateItem = (form: typeof itemForm): Partial<InvoiceItem> => {
     const grossWeight = Number(form.gross_weight) || 0;
-    const wastagePct = Number(form.wastage_percentage) || 0;
-    const netWeight = grossWeight * (1 - wastagePct / 100);
+    const stoneWeight = Number(form.stone_weight) || 0;
+    const netWeight = grossWeight - stoneWeight;
     const rate = Number(form.rate_per_gram) || 0;
     const metalValue = netWeight * rate;
 
@@ -213,21 +217,27 @@ export function NewBill() {
       makingCharge = makingChargeValue;
     }
 
-    let wastageValue = 0;
+    // Wastage is now based on wastage_method and wastage_value, not percentage
+    let wastageAmount = 0;
+    const wastageMethod = form.wastage_method || 'NONE';
+    const wastageValue = Number(form.wastage_value) || 0;
     const wastageBase = form.wastage_base;
-    if (wastageBase === "metal_value") {
-      wastageValue = metalValue * (wastagePct / 100);
-    } else { // metal_value_plus_making
-      wastageValue = (metalValue + makingCharge) * (wastagePct / 100);
+
+    const baseForWastage = wastageBase === 'metal_value_plus_making' ? metalValue + makingCharge : metalValue;
+
+    if (wastageMethod === 'FIXED') {
+      wastageAmount = wastageValue;
+    } else if (wastageMethod === 'PERCENTAGE') {
+      wastageAmount = baseForWastage * (wastageValue / 100);
     }
 
     const stoneValue = Number(form.stone_value) || 0;
     const otherCharges = Number(form.other_charges) || 0;
-    const taxableValue = metalValue + makingCharge + wastageValue + stoneValue + otherCharges;
+    const taxableValue = metalValue + makingCharge + wastageAmount + stoneValue + otherCharges;
 
-    // Get tax rates (simplified - using default CGST/SGST)
-    const cgstRate = 9; // Default
-    const sgstRate = 9; // Default
+    // Get tax rates from tax settings (using defaults for preview)
+    const cgstRate = 1.5; // Default per plan
+    const sgstRate = 1.5; // Default per plan
     const cgstAmount = taxableValue * (cgstRate / 100);
     const sgstAmount = taxableValue * (sgstRate / 100);
     const igstAmount = 0;
@@ -236,12 +246,12 @@ export function NewBill() {
 
     return {
       gross_weight: grossWeight,
+      stone_weight: stoneWeight,
       net_weight: netWeight,
-      wastage_weight: grossWeight - netWeight,
       rate_per_gram: rate,
       metal_value: metalValue,
-      making_charge: makingCharge,
-      wastage_value: wastageValue,
+      making_charge_amount: makingCharge,
+      wastage_amount: wastageAmount,
       stone_value: stoneValue,
       other_charges: otherCharges,
       taxable_value: taxableValue,
@@ -311,15 +321,18 @@ export function NewBill() {
       english_name: "",
       marathi_name: "",
       gross_weight: "",
-      net_weight: "",
-      wastage_percentage: "",
+      stone_weight: "",
       rate_per_gram: "",
       making_charge_method: "PER_GRAM",
       making_charge_value: "",
       making_charge_per_gram_base: "net_weight",
+      wastage_method: "NONE",
+      wastage_value: "",
       wastage_base: "metal_value",
       stone_value: "",
       other_charges: "",
+      discount_method: "NONE",
+      discount_value: "",
     });
     setNewItemDialogOpen(true);
   };
@@ -333,15 +346,18 @@ export function NewBill() {
       english_name: item.english_name,
       marathi_name: item.marathi_name || "",
       gross_weight: String(item.gross_weight),
-      net_weight: String(item.net_weight),
-      wastage_percentage: String(((item.gross_weight - item.net_weight) / item.gross_weight) * 100),
+      stone_weight: String(item.stone_weight || 0),
       rate_per_gram: String(item.rate_per_gram),
       making_charge_method: item.making_charge_method,
-      making_charge_value: String(item.making_charge_value),
+      making_charge_value: String(item.making_charge_value || 0),
       making_charge_per_gram_base: item.making_charge_per_gram_base,
-      wastage_base: item.wastage_base,
-      stone_value: String(item.stone_value),
-      other_charges: String(item.other_charges),
+      wastage_method: item.wastage_method || 'NONE',
+      wastage_value: String(item.wastage_value || 0),
+      wastage_base: item.wastage_base || 'metal_value',
+      stone_value: String(item.stone_value || 0),
+      other_charges: String(item.other_charges || 0),
+      discount_method: item.discount_method || 'NONE',
+      discount_value: String(item.discount_value || 0),
     });
     setNewItemDialogOpen(true);
   };
@@ -386,68 +402,72 @@ export function NewBill() {
       return;
     }
 
+    if (!selectedCustomer) {
+      alert("Please select a customer");
+      return;
+    }
+
     setSaving(true);
     try {
-      const invoiceData: InvoiceData = {
-        customer_id: selectedCustomer?.id,
-        invoice_date: invoiceDate,
+      // Create draft first
+      const draftInput = {
+        invoiceDate: invoiceDate,
+        customerId: selectedCustomer.id,
         items: items.map(item => ({
           preset_id: item.preset_id,
           metal_id: item.metal_id,
           purity_id: item.purity_id,
-          english_name: item.english_name,
-          marathi_name: item.marathi_name,
+          product_name_english: item.english_name,
+          product_name_marathi: item.marathi_name,
+          hsn_sac: item.hsn_sac || '',
           gross_weight: item.gross_weight,
+          stone_weight: item.stone_weight || 0,
           net_weight: item.net_weight,
-          wastage_percentage: ((item.gross_weight - item.net_weight) / item.gross_weight) * 100,
-          wastage_weight: item.wastage_weight,
-          rate_per_gram: item.rate_per_gram,
-          metal_value: item.metal_value,
+          metal_rate: item.rate_per_gram,
           making_charge_method: item.making_charge_method,
-          making_charge_value: item.making_charge_value,
+          making_charge_value: item.making_charge_value || 0,
           making_charge_per_gram_base: item.making_charge_per_gram_base,
-          making_charge: item.making_charge,
-          wastage_base: item.wastage_base,
-          wastage_value: item.wastage_value,
-          stone_value: item.stone_value,
-          other_charges: item.other_charges,
-          taxable_value: item.taxable_value,
-          cgst_rate: item.cgst_rate,
-          cgst_amount: item.cgst_amount,
-          sgst_rate: item.sgst_rate,
-          sgst_amount: item.sgst_amount,
-          igst_rate: item.igst_rate,
-          igst_amount: item.igst_amount,
-          total_amount: item.total_amount,
+          wastage_method: item.wastage_method || 'NONE',
+          wastage_value: item.wastage_value || 0,
+          wastage_base: item.wastage_base || 'metal_value',
+          stone_value: item.stone_value || 0,
+          other_charges: item.other_charges ? [{ description: 'Other', amount: item.other_charges, taxable: true }] : [],
+          discount_method: item.discount_method || 'NONE',
+          discount_value: item.discount_value || 0,
         })),
-        subtotal,
-        total_tax: totalTax,
-        discount,
-        rounding: 0,
-        total_amount: totalAmount,
-        payment_method: paymentMethod,
-        payment_reference: paymentReference,
-        notes,
+        payments: paymentMethods.map(pm => ({
+          method: pm.method,
+          amount: pm.amount,
+          reference_number: pm.reference_number || '',
+          date: pm.date || invoiceDate,
+          notes: pm.notes || '',
+        })),
+        taxType: 'CGST_SGST' as const,
+        roundingMode: 'PER_ITEM' as const,
+        invoiceLanguage: 'ENGLISH' as const,
+        invoiceDiscountMethod: 'NONE' as const,
+        invoiceDiscountValue: 0,
+        createdBy: 1, // TODO: Get from auth context
       };
 
-      const result = await ipc.invoices.createInvoice(invoiceData);
+      const draftId = await ipc.invoices.createDraft(draftInput);
 
-      if (result.success) {
-        alert(`Invoice created successfully! Invoice #${result.invoiceNumber}`);
+      // Then finalize the invoice
+      const result = await ipc.invoices.finalizeInvoice(draftId, 1); // TODO: Get from auth context
+
+      if (result) {
+        alert(`Invoice ${result.invoiceNumber} created successfully!`);
         // Reset form
         setItems([]);
+        setPaymentMethods([{ method: 'CASH', amount: 0, reference_number: '', date: invoiceDate, notes: '' }]);
+        setInvoiceDate(format(new Date(), 'yyyy-MM-dd'));
         setSelectedCustomer(null);
-        setCustomerSearch("");
-        setDiscount(0);
-        setPaymentMethod("");
-        setPaymentReference("");
-        setNotes("");
-        setInvoiceDate(format(new Date(), "yyyy-MM-dd"));
       } else {
-        alert(result.error || "Failed to create invoice");
+        alert('Failed to create invoice');
       }
     } catch (error: any) {
-      alert(error.message || "Failed to create invoice");
+      console.error('Create invoice error:', error);
+      alert(`Error: ${error.message}`);
     } finally {
       setSaving(false);
     }
@@ -887,12 +907,12 @@ export function NewBill() {
                   )}
                 />
                 <FormField
-                  control={{ name: "wastage_percentage", onChange: (e) => setItemForm((prev) => ({ ...prev, wastage_percentage: e.target.value })) }}
+                  control={{ name: "stone_weight", onChange: (e) => setItemForm((prev) => ({ ...prev, stone_weight: e.target.value })) }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Wastage % *</FormLabel>
+                      <FormLabel>Stone Weight (g)</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" min="0" max="100" placeholder="0.00" required />
+                        <Input {...field} type="number" step="0.001" min="0" placeholder="0.000" />
                       </FormControl>
                     </FormItem>
                   )}
@@ -964,15 +984,46 @@ export function NewBill() {
                 />
               </div>
 
-              {/* Wastage Base */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Wastage */}
+              <div className="grid grid-cols-3 gap-4">
+                <FormField
+                  control={{ name: "wastage_method", onChange: (e) => setItemForm((prev) => ({ ...prev, wastage_method: e.target.value })) }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wastage Method *</FormLabel>
+                      <FormControl>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="NONE">None</SelectItem>
+                            <SelectItem value="FIXED">Fixed Amount</SelectItem>
+                            <SelectItem value="PERCENTAGE">Percentage</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={{ name: "wastage_value", onChange: (e) => setItemForm((prev) => ({ ...prev, wastage_value: e.target.value })) }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wastage Value *</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" min="0" placeholder="0.00" required />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={{ name: "wastage_base", onChange: (e) => setItemForm((prev) => ({ ...prev, wastage_base: e.target.value })) }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Wastage Base</FormLabel>
                       <FormControl>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={itemForm.wastage_method === "NONE"}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select base" />
                           </SelectTrigger>
@@ -985,18 +1036,20 @@ export function NewBill() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={{ name: "stone_value", onChange: (e) => setItemForm((prev) => ({ ...prev, stone_value: e.target.value })) }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Stone Value (₹)</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="number" step="0.01" min="0" placeholder="0.00" />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
               </div>
+
+              {/* Stone Value */}
+              <FormField
+                control={{ name: "stone_value", onChange: (e) => setItemForm((prev) => ({ ...prev, stone_value: e.target.value })) }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stone Value (₹)</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="number" step="0.01" min="0" placeholder="0.00" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={{ name: "other_charges", onChange: (e) => setItemForm((prev) => ({ ...prev, other_charges: e.target.value })) }}
@@ -1020,8 +1073,8 @@ export function NewBill() {
                       <span className="ml-2 font-mono font-medium">
                         {(() => {
                           const gw = Number(itemForm.gross_weight) || 0;
-                          const wp = Number(itemForm.wastage_percentage) || 0;
-                          return formatNumber(gw * (1 - wp / 100));
+                          const sw = Number(itemForm.stone_weight) || 0;
+                          return formatNumber(gw - sw);
                         })()} g
                       </span>
                     </div>
@@ -1030,9 +1083,9 @@ export function NewBill() {
                       <span className="ml-2 font-mono font-medium">
                         {(() => {
                           const gw = Number(itemForm.gross_weight) || 0;
-                          const wp = Number(itemForm.wastage_percentage) || 0;
+                          const sw = Number(itemForm.stone_weight) || 0;
                           const rate = Number(itemForm.rate_per_gram) || 0;
-                          return formatCurrency(gw * (1 - wp / 100) * rate);
+                          return formatCurrency((gw - sw) * rate);
                         })()}
                       </span>
                     </div>
@@ -1041,8 +1094,7 @@ export function NewBill() {
                       <span className="ml-2 font-mono font-medium">
                         {(() => {
                           const gw = Number(itemForm.gross_weight) || 0;
-                          const wp = Number(itemForm.wastage_percentage) || 0;
-                          const nw = gw * (1 - wp / 100);
+                          const nw = gw - (Number(itemForm.stone_weight) || 0);
                           const rate = Number(itemForm.rate_per_gram) || 0;
                           const mv = nw * rate;
                           const mcv = Number(itemForm.making_charge_value) || 0;

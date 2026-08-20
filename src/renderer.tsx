@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Login } from '@/pages/Login';
+import { AdminSetup } from '@/pages/AdminSetup';
 import { Dashboard } from '@/pages/Dashboard';
 import { Customers } from '@/pages/Customers';
 import { Products } from '@/pages/Products';
@@ -18,8 +19,9 @@ import { AuditLog } from '@/pages/AuditLog';
 import { NewBill } from '@/pages/NewBill';
 import './index.css';
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, requiredPermissions }: { children: React.ReactNode; requiredPermissions?: string[] }) {
   const { state } = useAuth();
+  const { hasAllPermissions } = usePermissions();
 
   if (state.isLoading) {
     return (
@@ -31,6 +33,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!state.isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requiredPermissions && requiredPermissions.length > 0) {
+    if (!hasAllPermissions(requiredPermissions)) {
+      // Redirect to dashboard if user lacks required permissions
+      return <Navigate to="/dashboard" replace />;
+    }
   }
 
   return <>{children}</>;
@@ -64,6 +73,10 @@ function AppRoutes() {
             <Login />
           </PublicRoute>
         }
+      />
+      <Route
+        path="/setup/admin"
+        element={<AdminSetup />}
       />
       <Route
         element={

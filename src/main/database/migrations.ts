@@ -147,3 +147,16 @@ export async function validateSchemaVersion(expectedVersion: number): Promise<bo
   const current = await getSchemaVersion();
   return current === expectedVersion;
 }
+
+export async function checkSchemaVersion(expectedVersion: number): Promise<{
+  valid: boolean;
+  current: number;
+  expected: number;
+}> {
+  const current = await getSchemaVersion();
+  return {
+    valid: current === expectedVersion,
+    current,
+    expected: expectedVersion,
+  };
+}

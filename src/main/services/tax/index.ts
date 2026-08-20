@@ -98,6 +98,39 @@ export function calculateTax(
   return { cgst, sgst, igst, totalTax };
 }
 
+/**
+ * Calculate tax per item (for PER_ITEM rounding mode)
+ * Each item's taxable value is rounded individually, then tax is calculated on each
+ */
+export function calculateTaxPerItem(
+  items: { taxableValue: Decimal }[],
+  taxType: TaxType,
+  rates: TaxRates
+): { cgst: Decimal; sgst: Decimal; igst: Decimal; totalTax: Decimal } {
+  const cgstRate = new Decimal(rates.cgst).dividedBy(100);
+  const sgstRate = new Decimal(rates.sgst).dividedBy(100);
+  const igstRate = new Decimal(rates.igst).dividedBy(100);
+
+  let totalCgst = new Decimal(0);
+  let totalSgst = new Decimal(0);
+  let totalIgst = new Decimal(0);
+
+  for (const item of items) {
+    const taxableValue = round(item.taxableValue, MONEY_DECIMAL_PLACES);
+
+    if (taxType === 'CGST_SGST') {
+      totalCgst = totalCgst.plus(round(taxableValue.times(cgstRate), MONEY_DECIMAL_PLACES));
+      totalSgst = totalSgst.plus(round(taxableValue.times(sgstRate), MONEY_DECIMAL_PLACES));
+    } else {
+      totalIgst = totalIgst.plus(round(taxableValue.times(igstRate), MONEY_DECIMAL_PLACES));
+    }
+  }
+
+  const totalTax = round(totalCgst.plus(totalSgst).plus(totalIgst), MONEY_DECIMAL_PLACES);
+
+  return { cgst: totalCgst, sgst: totalSgst, igst: totalIgst, totalTax };
+}
+
 export function calculateGrandTotal(
   finalTaxableValue: Decimal,
   otherChargesNonTaxable: Decimal,

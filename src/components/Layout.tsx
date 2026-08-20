@@ -9,25 +9,26 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { LayoutDashboard, Users, Package, ShoppingCart, Settings, History, LogOut, DollarSign, Building2, FileText, HelpCircle, Menu, X, CreditCard, Database, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, usePermissions } from "@/context/AuthContext";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "New Bill", href: "/new-bill", icon: ShoppingCart },
-  { name: "Sales History", href: "/sales-history", icon: History },
-  { name: "Customers", href: "/customers", icon: Users },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Rates", href: "/rates", icon: DollarSign },
+  { name: "New Bill", href: "/new-bill", icon: ShoppingCart, permission: "CREATE_BILL" },
+  { name: "Sales History", href: "/sales-history", icon: History, permission: "VIEW_SALES" },
+  { name: "Customers", href: "/customers", icon: Users, permission: "MANAGE_CUSTOMERS" },
+  { name: "Products", href: "/products", icon: Package, permission: "MANAGE_PRODUCT_PRESETS" },
+  { name: "Rates", href: "/rates", icon: DollarSign, permission: "MANAGE_RATES" },
   { name: "Shop Settings", href: "/settings/shop", icon: Building2 },
   { name: "Templates", href: "/settings/templates", icon: FileText },
-  { name: "Tax Settings", href: "/settings/tax", icon: Settings },
+  { name: "Tax Settings", href: "/settings/tax", icon: Settings, permission: "MANAGE_TAX_SETTINGS" },
   { name: "Payment Methods", href: "/settings/payments", icon: CreditCard },
-  { name: "Backup", href: "/settings/backup", icon: Database },
-  { name: "Audit Log", href: "/audit", icon: HelpCircle },
+  { name: "Backup", href: "/settings/backup", icon: Database, permission: "BACKUP_DATABASE" },
+  { name: "Audit Log", href: "/audit", icon: HelpCircle, permission: "VIEW_AUDIT_LOG" },
 ];
 
 export function Layout() {
   const { state, logout } = useAuth();
+  const { hasPermission } = usePermissions();
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
@@ -94,7 +95,9 @@ export function Layout() {
         {/* Navigation */}
         <ScrollArea className="flex-1">
           <nav className="p-3 space-y-1">
-            {navigation.map((item) => (
+            {navigation
+              .filter(item => !item.permission || hasPermission(item.permission))
+              .map((item) => (
               <NavLink
                 key={item.name}
                 to={item.href}

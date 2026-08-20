@@ -16,6 +16,7 @@ export interface User {
 
 export interface AuthState {
   user: User | null;
+  permissions: string[] | null;
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
@@ -34,6 +35,7 @@ const AuthContext = React.createContext<{
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = React.useState<AuthState>({
     user: null,
+    permissions: null,
     accessToken: null,
     refreshToken: null,
     isAuthenticated: false,
@@ -59,8 +61,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('[Auth] Refresh result:', result);
           if (result && result.accessToken) {
             const user = JSON.parse(storedUser);
+            // Decode JWT to get permissions
+            let permissions: string[] = [];
+            try {
+              const payload = JSON.parse(atob(result.accessToken.split('.')[1]));
+              permissions = payload.permissions || [];
+            } catch {
+              permissions = [];
+            }
             setState({
               user,
+              permissions,
               accessToken: result.accessToken,
               refreshToken: result.refreshToken || storedRefreshToken,
               isAuthenticated: true,
@@ -68,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
             // Update localStorage
             localStorage.setItem('accessToken', result.accessToken);
+            localStorage.setItem('permissions', JSON.stringify(permissions));
             if (result.refreshToken) {
               localStorage.setItem('refreshToken', result.refreshToken);
             }
@@ -79,12 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
+          localStorage.removeItem('permissions');
         }
       }
 
       // No valid session
       setState({
         user: null,
+        permissions: null,
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
@@ -94,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('[Auth] checkAuth error:', err);
       setState({
         user: null,
+        permissions: null,
         accessToken: null,
         refreshToken: null,
         isAuthenticated: false,
@@ -119,13 +134,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { user, accessToken, refreshToken } = result;
 
+      // Decode JWT to get permissions
+      let permissions: string[] = [];
+      try {
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        permissions = payload.permissions || [];
+      } catch {
+        permissions = [];
+      }
+
       // Store in localStorage
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('permissions', JSON.stringify(permissions));
 
       setState({
         user,
+        permissions,
         accessToken,
         refreshToken,
         isAuthenticated: true,
@@ -159,13 +185,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { user, accessToken, refreshToken } = loginResult;
 
+      // Decode JWT to get permissions
+      let permissions: string[] = [];
+      try {
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        permissions = payload.permissions || [];
+      } catch {
+        permissions = [];
+      }
+
       // Store in localStorage
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('permissions', JSON.stringify(permissions));
 
       setState({
         user,
+        permissions,
         accessToken,
         refreshToken,
         isAuthenticated: true,
@@ -187,9 +224,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
+    localStorage.removeItem('permissions');
 
     setState({
       user: null,
+      permissions: null,
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
@@ -207,8 +246,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await ipc.auth.refreshAccessToken(refreshToken);
       if (result && result.accessToken) {
-        setState((s) => ({ ...s, accessToken: result.accessToken }));
+        // Decode JWT to get permissions
+        let permissions: string[] = [];
+        try {
+          const payload = JSON.parse(atob(result.accessToken.split('.')[1]));
+          permissions = payload.permissions || [];
+        } catch {
+          permissions = [];
+        }
+        setState((s) => ({ ...s, accessToken: result.accessToken, permissions }));
         localStorage.setItem('accessToken', result.accessToken);
+        localStorage.setItem('permissions', JSON.stringify(permissions));
         if (result.refreshToken) {
           localStorage.setItem('refreshToken', result.refreshToken);
           setState((s) => ({ ...s, refreshToken: result.refreshToken }));
@@ -221,6 +269,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [logout]);
 
+  const hasPermission = React.useCallback((permission: string) => {
+    return state.permissions?.includes(permission) ?? false;
+  }, [state.permissions]);
+
+  const hasAnyPermission = React.useCallback((permissions: string[]) => {
+    return permissions.some(p => state.permissions?.includes(p) ?? false);
+  }, [state.permissions]);
+
+  const hasAllPermissions = React.useCallback((permissions: string[]) => {
+    return permissions.every(p => state.permissions?.includes(p) ?? false);
+  }, [state.permissions]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -230,6 +290,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logout,
         refreshAccessToken,
         checkAuth,
+        hasPermission,
+        hasAnyPermission,
+        hasAllPermissions,
       }}
     >
       {children}
@@ -243,4 +306,14 @@ export function useAuth() {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+}
+
+export function usePermissions() {
+  const { state, hasPermission, hasAnyPermission, hasAllPermissions } = useAuth();
+  return {
+    permissions: state.permissions || [],
+    hasPermission,
+    hasAnyPermission,
+    hasAllPermissions,
+  };
 }

@@ -203,6 +203,12 @@ export const ipc = {
     update: (code: string, input: any) => window.electronAPI.paymentMethods.update(code, input),
     delete: (code: string) => window.electronAPI.paymentMethods.delete(code),
   },
+  rendering: {
+    renderInvoiceToHTML: (invoiceId: number, versionNumber?: number) => window.electronAPI.rendering.renderInvoiceToHTML(invoiceId, versionNumber),
+    printInvoice: (invoiceId: number, versionNumber?: number) => window.electronAPI.rendering.printInvoice(invoiceId, versionNumber),
+    printInvoiceToPDF: (invoiceId: number, versionNumber?: number, outputPath?: string) => window.electronAPI.rendering.printInvoiceToPDF(invoiceId, versionNumber, outputPath),
+    printInvoicePreview: (invoiceId: number, versionNumber?: number) => window.electronAPI.rendering.printInvoicePreview(invoiceId, versionNumber),
+  },
   users: {
     getAll: () => window.electronAPI.users.getAll(),
     create: (input: any) => window.electronAPI.users.create(input),

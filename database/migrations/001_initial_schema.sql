@@ -155,6 +155,23 @@ CREATE TABLE IF NOT EXISTS invoices (
     finalized_at DATETIME
 );
 
+-- Drafts table (persistent draft storage)
+CREATE TABLE IF NOT EXISTS drafts (
+    id TEXT PRIMARY KEY,
+    invoice_date DATE NOT NULL,
+    customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+    items_json TEXT NOT NULL DEFAULT '[]',
+    payments_json TEXT NOT NULL DEFAULT '[]',
+    tax_type TEXT NOT NULL DEFAULT 'CGST_SGST' CHECK (tax_type IN ('CGST_SGST', 'IGST')),
+    rounding_mode TEXT NOT NULL DEFAULT 'PER_ITEM' CHECK (rounding_mode IN ('PER_ITEM', 'AGGREGATE')),
+    invoice_language TEXT NOT NULL DEFAULT 'ENGLISH' CHECK (invoice_language IN ('ENGLISH', 'MARATHI', 'BILINGUAL')),
+    invoice_discount_method TEXT NOT NULL DEFAULT 'NONE' CHECK (invoice_discount_method IN ('NONE', 'FIXED', 'PERCENTAGE')),
+    invoice_discount_value REAL NOT NULL DEFAULT 0,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Invoice versions table
 CREATE TABLE IF NOT EXISTS invoice_versions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -285,6 +302,22 @@ CREATE TABLE IF NOT EXISTS migrations (
     checksum TEXT NOT NULL,
     applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Backup settings table
+CREATE TABLE IF NOT EXISTS backup_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    auto_backup_enabled INTEGER NOT NULL DEFAULT 0,
+    backup_interval_hours INTEGER NOT NULL DEFAULT 24,
+    backup_location TEXT,
+    retention_count INTEGER NOT NULL DEFAULT 30,
+    encrypt_backups INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Seed default backup settings
+INSERT OR IGNORE INTO backup_settings (id, auto_backup_enabled, backup_interval_hours, retention_count, encrypt_backups) VALUES
+    (1, 0, 24, 30, 0);
 
 -- Insert default data
 INSERT OR IGNORE INTO metals (name, code, active) VALUES
