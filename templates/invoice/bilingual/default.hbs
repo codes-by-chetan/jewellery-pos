@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en-mr">
+<head>
+  <meta charset="UTF-8">
+  <title>Tax Invoice / कर बिल</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+    @font-face {
+      font-family: 'Noto Sans Devanagari';
+      src: local('Noto Sans Devanagari');
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Noto Sans Devanagari', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 100%;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #333;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .shop-name {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin: 0 0 5px 0;
+    }
+    .shop-details {
+      font-size: 10px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .invoice-title {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+      margin: 20px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .invoice-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+    .meta-group {
+      flex: 1;
+    }
+    .meta-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #999;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .meta-value {
+      font-weight: 500;
+    }
+    .party-details {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .party-box {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .party-box:first-child {
+      margin-right: 10px;
+    }
+    .party-box:last-child {
+      margin-left: 10px;
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .items-table th {
+      background: #333;
+      color: white;
+      padding: 8px 5px;
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .items-table td {
+      padding: 8px 5px;
+      border-bottom: 1px solid #eee;
+      font-size: 11px;
+    }
+    .items-table tr:last-child td {
+      border-bottom: 2px solid #333;
+    }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .totals {
+      width: 300px;
+      margin-left: auto;
+      border: 1px solid #333;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 15px;
+      border-bottom: 1px solid #eee;
+    }
+    .totals-row:last-child {
+      border-bottom: none;
+      background: #f5f5f5;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .totals-label {
+      color: #666;
+    }
+    .totals-value {
+      font-weight: 600;
+    }
+    .amount-words {
+      margin-top: 20px;
+      padding: 15px;
+      background: #fafafa;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+      font-size: 10px;
+      line-height: 1.6;
+    }
+    .amount-words-label {
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #999;
+      margin-bottom: 5px;
+    }
+    .footer {
+      margin-top: 30px;
+      padding-top: 15px;
+      border-top: 1px solid #ddd;
+      font-size: 9px;
+      color: #999;
+      text-align: center;
+    }
+    .bank-details {
+      font-size: 9px;
+      margin-top: 10px;
+    }
+    .declaration {
+      margin-top: 15px;
+      font-size: 9px;
+    }
+    .signature {
+      margin-top: 30px;
+      text-align: right;
+    }
+    .signature-line {
+      border-top: 1px solid #333;
+      width: 150px;
+      margin-left: auto;
+      padding-top: 5px;
+      font-size: 10px;
+    }
+    .bilingual {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .bilingual > div {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="shop-name">{{shop.name}}</div>
+      <div class="shop-details">
+        {{#if shop.address}}{{shop.address}}, {{/if}}
+        {{#if shop.city}}{{shop.city}} - {{/if}}
+        {{#if shop.pincode}}{{shop.pincode}}, {{/if}}
+        {{#if shop.state}}{{shop.state}}{{/if}}
+        {{#if shop.phone}} | Ph: {{shop.phone}} / फोन: {{shop.phone}}{{/if}}
+        {{#if shop.email}} | Email: {{shop.email}} / ईमेल: {{shop.email}}{{/if}}
+        {{#if shop.gstin}}<br>GSTIN: {{shop.gstin}}{{/if}}
+      </div>
+    </div>
+
+    <!-- Invoice Title -->
+    <div class="invoice-title">Tax Invoice / कर बिल</div>
+
+    <!-- Invoice Meta -->
+    <div class="invoice-meta">
+      <div class="meta-group">
+        <div class="meta-label">Invoice No. / बिल क्रमांक</div>
+        <div class="meta-value">{{invoice.number}} / V{{invoice.version}}</div>
+      </div>
+      <div class="meta-group">
+        <div class="meta-label">Date / दिनांक</div>
+        <div class="meta-value">{{formatDate invoice.date}}</div>
+      </div>
+      <div class="meta-group">
+        <div class="meta-label">State Code / राज्य कोड</div>
+        <div class="meta-value">{{shop.state_code}}</div>
+      </div>
+    </div>
+
+    <!-- Party Details -->
+    <div class="party-details">
+      <div class="party-box">
+        <div class="meta-label">Bill To / बिल टू</div>
+        <div class="meta-value">{{customer.name}}</div>
+        {{#if customer.address}}<div>{{customer.address}}</div>{{/if}}
+        {{#if customer.mobile}}<div>Mobile: {{customer.mobile}} / मोबाइल: {{customer.mobile}}</div>{{/if}}
+        {{#if customer.gstin}}<div>GSTIN: {{customer.gstin}}</div>{{/if}}
+      </div>
+      <div class="party-box">
+        <div class="meta-label">Ship To / शिप टू</div>
+        <div class="meta-value">{{customer.name}}</div>
+        {{#if customer.address}}<div>{{customer.address}}</div>{{/if}}
+        {{#if customer.mobile}}<div>Mobile: {{customer.mobile}} / मोबाइल: {{customer.mobile}}</div>{{/if}}
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 5%;">Sr. / क्र.</th>
+          <th style="width: 25%;">Description / वस्तूचे वर्णन</th>
+          <th style="width: 10%;">HSN/SAC</th>
+          <th style="width: 10%;">Metal / Purity<br>धातू / शुद्धता</th>
+          <th style="width: 10%;">Gross Wt (g) / एकूण वजन</th>
+          <th style="width: 10%;">Net Wt (g) / नेट वजन</th>
+          <th style="width: 10%;">Rate (₹/g) / दर</th>
+          <th style="width: 10%;">Amount (₹) / रक्कम</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each invoice.items}}
+        <tr>
+          <td class="text-center">{{line_number}}</td>
+          <td>
+            <strong>{{product_name_english}} / {{product_name_marathi}}</strong>
+            {{#if hsn_sac}}<br><small>HSN: {{hsn_sac}}</small>{{/if}}
+          </td>
+          <td class="text-center">{{hsn_sac}}</td>
+          <td class="text-center">{{metal_name}} / {{purity_name}}</td>
+          <td class="text-right">{{formatWeight gross_weight}}</td>
+          <td class="text-right">{{formatWeight net_weight}}</td>
+          <td class="text-right">{{formatCurrency metal_rate false}}</td>
+          <td class="text-right">{{formatCurrency total_value false}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="totals">
+      <div class="totals-row">
+        <span class="totals-label">Total Metal Value / एकूण धातू मूल्य</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.metal_value false}}</span>
+      </div>
+      {{#if invoice.totals.making_charge_amount}}
+      <div class="totals-row">
+        <span class="totals-label">Making Charges / मेकिंग चार्जेस</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.making_charge_amount false}}</span>
+      </div>
+      {{/if}}
+      {{#if invoice.totals.wastage_amount}}
+      <div class="totals-row">
+        <span class="totals-label">Wastage / वेस्टेज</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.wastage_amount false}}</span>
+      </div>
+      {{/if}}
+      {{#if invoice.totals.stone_value}}
+      <div class="totals-row">
+        <span class="totals-label">Stone Value / स्टोन मूल्य</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.stone_value false}}</span>
+      </div>
+      {{/if}}
+      {{#if invoice.totals.other_charges_taxable}}
+      <div class="totals-row">
+        <span class="totals-label">Other Charges (Taxable) / इतर चार्जेस (करयोग्य)</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.other_charges_taxable false}}</span>
+      </div>
+      {{/if}}
+      {{#if invoice.totals.other_charges_nontaxable}}
+      <div class="totals-row">
+        <span class="totals-label">Other Charges (Non-Taxable) / इतर चार्जेस (करमुक्त)</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.other_charges_nontaxable false}}</span>
+      </div>
+      {{/if}}
+      {{#if invoice.totals.discount_amount}}
+      <div class="totals-row">
+        <span class="totals-label">Less: Discount / वजा: सवलत</span>
+        <span class="totals-value">-{{formatCurrency invoice.totals.discount_amount false}}</span>
+      </div>
+      {{/if}}
+      {{#if invoice.tax}}
+      {{#if (eq invoice.tax.tax_type 'CGST_SGST')}}
+      <div class="totals-row">
+        <span class="totals-label">Taxable Value / करयोग्य मूल्य</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.taxable_value false}}</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">CGST ({{invoice.tax.cgst_rate}}%)</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.cgst false}}</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">SGST ({{invoice.tax.sgst_rate}}%)</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.sgst false}}</span>
+      </div>
+      {{else}}
+      <div class="totals-row">
+        <span class="totals-label">Taxable Value / करयोग्य मूल्य</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.taxable_value false}}</span>
+      </div>
+      <div class="totals-row">
+        <span class="totals-label">IGST ({{invoice.tax.igst_rate}}%)</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.igst false}}</span>
+      </div>
+      {{/if}}
+      {{/if}}
+      <div class="totals-row">
+        <span class="totals-label">Grand Total / एकूण रक्कम</span>
+        <span class="totals-value">{{formatCurrency invoice.totals.grand_total false}}</span>
+      </div>
+    </div>
+
+    <!-- Amount in Words -->
+    <div class="amount-words">
+      <div class="amount-words-label">Amount in Words / शब्दांमध्ये रक्कम:</div>
+      <div>{{invoice.totals.amount_in_words}}</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      {{#if shop.terms_conditions}}
+      <div class="declaration">
+        <strong>Declaration / घोषणा:</strong> {{shop.terms_conditions}}
+      </div>
+      {{/if}}
+      {{#if shop.invoice_footer}}
+      <div>{{shop.invoice_footer}}</div>
+      {{/if}}
+      <div class="signature">
+        <div class="signature-line">Authorised Signatory / अधिकृत सही</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

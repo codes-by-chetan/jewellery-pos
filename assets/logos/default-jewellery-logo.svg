@@ -1,0 +1,26 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="silverGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8E8E8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#C0C0C0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A8A8A8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Outer ring -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="url(#goldGradient)" stroke-width="6"/>
+  <!-- Inner ring -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="url(#silverGradient)" stroke-width="3"/>
+  <!-- Diamond/Gem shape in center -->
+  <polygon points="100,30 170,100 100,170 30,100" fill="url(#goldGradient)" stroke="url(#silverGradient)" stroke-width="2"/>
+  <!-- Inner diamond -->
+  <polygon points="100,55 145,100 100,145 55,100" fill="url(#silverGradient)" stroke="url(#goldGradient)" stroke-width="1.5"/>
+  <!-- Center circle -->
+  <circle cx="100" cy="100" r="25" fill="url(#goldGradient)" stroke="url(#silverGradient)" stroke-width="1.5"/>
+  <!-- Sparkle -->
+  <polygon points="100,40 103,50 115,50 105,58 108,70 100,63 92,70 95,58 85,50 97,50" fill="#FFFFFF" opacity="0.9"/>
+</svg>
